@@ -1,2 +1,9 @@
 # ipython check points
 .ipynb_checkpoints/
+
+# dataset
+MNIST_data/
+*.gz
+
+#python cache
+__pycache__/
