@@ -5,5 +5,9 @@
 MNIST_data/
 *.gz
 
-#python cache
+# python cache
 __pycache__/
+
+# python script for testing
+alexnet.py
+test_alexnet.py

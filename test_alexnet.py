@@ -1,4 +1,3 @@
-
 # coding: utf-8
 
 # # Python Object Oriented Programming
@@ -26,13 +25,13 @@ print(tf.__version__)
 
 class Model(object):
     """Base model for building the AlexNet model"""
-    def __init__(self, input_img, weights, biases, learning_rate):
+    def __init__(self, img, weights, biases, learning_rate):
         """
         Args:
             num_classes: The number of classes of the dataset
             
         """              
-        self._input = input_img
+        self._input = img
         self._weights = weights
         self._biases = biases
         
@@ -61,12 +60,12 @@ mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 n_inputs = 784 # MNIST data input (img shape: 28*28)
 n_classes = 10 # MNIST total classes (0-9 digits)
 learning_rate = 0.001
-
+dropout = 0.8 # Dropout, probability to keep units
 
 # input and output vector placeholders
 x = tf.placeholder(tf.float32, [None, n_inputs])
 y = tf.placeholder(tf.float32, [None, n_classes])
-
+keep_prob = tf.placeholder(tf.float32)
 
 # In[4]:
 
@@ -99,82 +98,70 @@ biases = {
 fc_layer = lambda x, W, b, name=None: tf.nn.bias_add(tf.matmul(x, W), b)
 
 class alexNet(Model):
-    # overwrite class function model_architecture
-    # def conv_fn(img, weights, biases, strides, padding, name): 
-    #     conv = tf.nn.conv2d(img, weights=weights, strides=strides, padding=padding, name=name)
-    #     conv = tf.nn.bias_add(conv, biases=biases)
-    #     conv = tf.nn.relu(conv)            
-    #     return conv
-    
-    def model_architecture(self, img, weights, biases):
-        # reshape the input image vector to dimension 227 x 227 x 3
-        img = tf.reshape(img, shape=[-1, 28, 28, 1])     
-        
-        # 1st convolutional layer
-        #conv1 = conv_fn(img, weights["wc1"], biases["bc1"], strides=[1, 4, 4, 1], padding="SAME", name="conv1")
-        # conv1 = tf.nn.conv2d(img, weights["wc1"], strides=[1, 1, 1, 1], padding="SAME", name="conv1")
-        # conv1 = tf.nn.bias_add(conv1, biases["bc1"])
-        # conv1 = tf.nn.relu(conv1)        
-        # conv1 = tf.nn.local_response_normalization(conv1, depth_radius=5.0, bias=2.0, alpha=1e-4, beta=0.75)
-        # conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="VALID")
+    def conv2d(self, name, l_input, w, b):
+        return tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(l_input, w, strides=[1, 1, 1, 1], padding='SAME'),b), name=name)
 
-        # # 2nd convolutional layer
-        # #conv2 = conv_fn(img, weights["wc2"], biases["bc2"], strides=[1, 1, 1, 1], padding="SAME", name="conv2")
-        # conv2 = tf.nn.conv2d(conv1, weights["wc2"], strides=[1, 1, 1, 1], padding="SAME", name="conv2")
-        # conv2 = tf.nn.bias_add(conv2, biases["bc2"])
-        # conv2 = tf.nn.relu(conv2)        
-        # conv2 = tf.nn.local_response_normalization(conv2, depth_radius=5.0, bias=2.0, alpha=1e-4, beta=0.75)
-        # conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="VALID")
+    def max_pool(self, name, l_input, k):
+        return tf.nn.max_pool(l_input, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME', name=name)
 
-        # # 3rd convolutional layer, no max pooling        
-        # #conv3 = conv_fn(img, weights["wc3"], biases["bc3"], strides=[1, 1, 1, 1], padding="SAME", name="conv3")
-        # conv3 = tf.nn.conv2d(conv2, weights["wc3"], strides=[1, 1, 1, 1], padding="SAME", name="conv3")
-        # conv3 = tf.nn.bias_add(conv3, biases["bc3"])
-        # conv3 = tf.nn.relu(conv3)        
+    def norm(self, name, l_input, lsize=4):
+        return tf.nn.lrn(l_input, lsize, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name=name)
 
-        # # 4th convolutional layer, no max pooling
-        # #conv4 = conv_fn(img, weights["wc4"], biases["bc4"], strides=[1, 1, 1, 1], padding="SAME", name="conv4")
-        # # conv4 = tf.nn.conv2d(conv3, weights["wc4"], strides=[1, 1, 1, 1], padding="SAME", name="conv4")
-        # # conv4 = tf.nn.bias_add(conv4, biases["bc4"])
-        # # conv4 = tf.nn.relu(conv4)        
-        
-        # # # 5th convolutional layer
-        # # #conv5 = conv_fn(img, weights["wc5"], biases["bc5"], strides=[1, 1, 1, 1], padding="SAME", name="conv5")
-        # # conv5 = tf.nn.conv2d(conv4, weights["wc5"], strides=[1, 1, 1, 1], padding="SAME", name="conv5")
-        # # conv5 = tf.nn.bias_add(conv5, biases["bc5"])
-        # # conv5 = tf.nn.relu(conv5)        
-        # # conv5 = tf.nn.max_pool(conv5, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="VALID")        
-        
-        # # stretching out the 5th convolutional layer into a long vector
-        # shape = [-1, weights['wf1'].get_shape().as_list()[0]]
-        # flatten = tf.reshape(conv3, shape)
+    def model_architecture(self, img=None, weights=None, biases=None, dropout=None):
+        if img is None:
+            img = self._input # use init weights
+        if weights is None:
+            weights = self._weights # use init weights
+        if biases is None:
+            biases = self._biases # use init biases
 
-        # # 1st fully connected layer
-        # fc1 = fc_layer(flatten, weights["wf1"], biases["bf1"], name="fc1")
-        # fc1 = tf.nn.relu(fc1)
-        # fc1 = tf.nn.dropout(fc1, keep_prob=0.5)
+        # Reshape input picture
+        _X = tf.reshape(img, shape=[-1, 28, 28, 1])
 
-        # # 2nd fully connected layer
-        # fc2 = fc_layer(fc1, weights["wf2"], biases["bf2"], name="fc2")
-        # fc2 = tf.nn.relu(fc2)
-        # fc2 = tf.nn.dropout(fc2, keep_prob=0.5)
+        # Convolution Layer
+        conv1 = self.conv2d('conv1', _X, weights['wc1'], biases['bc1'])
+        # Max Pooling (down-sampling)
+        pool1 = self.max_pool('pool1', conv1, k=2)
+        # Apply Normalization
+        norm1 = self.norm('norm1', pool1, lsize=4)
+        # Apply Dropout
+        norm1 = tf.nn.dropout(norm1, dropout)
 
-        # # 3rd fully connected layer
-        # fc3 = fc_layer(fc2, weights["wf3"], biases["bf3"], name="fc3")
-        # res = tf.nn.softmax(fc3)
-        
+        # Convolution Layer
+        conv2 = self.conv2d('conv2', norm1, weights['wc2'], biases['bc2'])
+        # Max Pooling (down-sampling)
+        pool2 = self.max_pool('pool2', conv2, k=2)
+        # Apply Normalization
+        norm2 = self.norm('norm2', pool2, lsize=4)
+        # Apply Dropout
+        norm2 = tf.nn.dropout(norm2, dropout)
 
-        # Return the complete AlexNet model
-        # return res
-        return img
+        # Convolution Layer
+        conv3 = self.conv2d('conv3', norm2, weights['wc3'], biases['bc3'])
+        # Max Pooling (down-sampling)
+        pool3 = self.max_pool('pool3', conv3, k=2)
+        # Apply Normalization
+        norm3 = self.norm('norm3', pool3, lsize=4)
+        # Apply Dropout
+        norm3 = tf.nn.dropout(norm3, dropout)
+
+        # Fully connected layer
+        dense1 = tf.reshape(norm3, [-1, weights['wf1'].get_shape().as_list()[0]]) # Reshape conv3 output to fit dense layer input
+        dense1 = tf.nn.relu(tf.matmul(dense1, weights['wf1']) + biases['bf1'], name='fc1') # Relu activation
+
+        dense2 = tf.nn.relu(tf.matmul(dense1, weights['wf2']) + biases['bf2'], name='fc2') # Relu activation
+
+        # Output, class prediction
+        out = tf.matmul(dense2, weights['wf3']) + biases['bf3']
+        return out        
 
 
 # In[5]:
 
 
 # Construct model
-alex = alexNet(x, weights, biases, learning_rate)
-pred = alex.model_architecture(x, weights, biases)
+alex = alexNet(x, weights, biases, learning_rate) # create an alexNet object
+pred = alex.model_architecture(dropout = keep_prob)
 
 # Define loss and optimizer
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits= pred, labels= y))
@@ -203,14 +190,14 @@ with tf.Session() as sess:
     while step * batch_size < training_iters:
         batch_xs, batch_ys = mnist.train.next_batch(batch_size)
         # Fit training using batch data
-        sess.run(optimizer, feed_dict={x: batch_xs, y: batch_ys})
+        sess.run(optimizer, feed_dict={x: batch_xs, y: batch_ys, keep_prob: dropout})
         if step % display_step == 0:
             # Calculate batch accuracy
-            acc = sess.run(accuracy, feed_dict={x: batch_xs, y: batch_ys})
+            acc = sess.run(accuracy, feed_dict={x: batch_xs, y: batch_ys, keep_prob: 1.})
             # Calculate batch loss
-            loss = sess.run(cost, feed_dict={x: batch_xs, y: batch_ys})
+            loss = sess.run(cost, feed_dict={x: batch_xs, y: batch_ys, keep_prob: 1.})
             print ("Iter " + str(step*batch_size) + ", Minibatch Loss= " + "{:.6f}".format(loss) + ", Training Accuracy= " + "{:.5f}".format(acc))
         step += 1
     print ("Optimization Finished!")
     # Calculate accuracy for 256 mnist test images
-    print ("Testing Accuracy:", sess.run(accuracy, feed_dict={x: mnist.test.images[:256], y: mnist.test.labels[:256]}))
+    print ("Testing Accuracy:", sess.run(accuracy, feed_dict={x: mnist.test.images[:256], y: mnist.test.labels[:256], keep_prob: 1.}))
